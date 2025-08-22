@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dossiê Completo</title>
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- D3.js via CDN -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Leaflet.js for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos personalizados */
+        :root { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000;
+            color: #c9d1d9;
+        }
+        .card {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            overflow: hidden; /* Para o accordion */
+        }
+        .card-header {
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-content {
+            padding: 0 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-out, padding 0.3s ease-out;
+        }
+        .card.open .card-content {
+            padding: 0 1.5rem 1.5rem;
+            max-height: 5000px; /* Altura grande para acomodar o conteúdo */
+            transition: max-height 1s ease-in, padding 0.3s ease-in;
+        }
+        .section-title {
+            color: #ffffff;
+            font-size: 1.5rem; /* Ajustado para caber no header do accordion */
+        }
+        .subsection-title {
+            color: #e0e0e0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 0.5rem;
+            margin-top: 2rem;
+            margin-bottom: 1.5rem;
+        }
+        dt { font-weight: 600; color: #8b949e; }
+        dd { margin-bottom: 0.75rem; color: #c9d1d9; display: flex; align-items: center; gap: 0.5rem; }
+        .video-container, .image-container {
+            position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 0.5rem; background-color: #000;
+        }
+        .video-container iframe, .image-container img {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; cursor: pointer;
+        }
+        .modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.9); display: flex; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            margin: auto;
+            display: block;
+            /* max-width e max-height removidos para exibir a imagem no tamanho real */
+        }
+        .modal-close { position: absolute; top: 15px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; transition: 0.3s; cursor: pointer; }
+        .timeline-item { position: relative; padding-left: 30px; border-left: 2px solid #30363d; }
+        .timeline-item::before { content: ''; position: absolute; left: -9px; top: 0; width: 16px; height: 16px; border-radius: 50%; background-color: #4a5568; border: 2px solid #c9d1d9; }
+        .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9); }
+        .copy-btn {
+            background: none; border: none; cursor: pointer; padding: 2px; border-radius: 4px;
+        }
+        .copy-btn svg { width: 16px; height: 16px; color: #8b949e; }
+        .copy-btn:hover svg { color: #ffffff; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Seletor de Idioma e Barra de Pesquisa -->
+    <div class="sticky top-0 z-50 bg-black/50 backdrop-blur-sm p-4">
+        <div class="container mx-auto flex justify-between items-center gap-4">
+            <div class="relative flex-grow">
+                <input type="text" id="search-bar" onkeyup="searchDossier()" placeholder="Pesquisar no dossiê..." class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg focus:ring-gray-500 focus:border-gray-500 block w-full p-2.5 pl-10" data-translate-placeholder="search_placeholder">
+                <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+            </div>
+            <select id="language-selector" onchange="changeLanguage(this.value)" class="bg-gray-800 border border-gray-600 text-white text-sm rounded-lg focus:ring-gray-500 focus:border-gray-500 block p-2.5">
+                <option value="pt-br">Português (Brasil)</option>
+                <option value="en">English</option>
+                <option value="fr">Français</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <!-- Cabeçalho Principal -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-2" data-translate="dossier_title">Dossiê Confidencial</h1>
+            <p class="text-gray-400" data-translate="dossier_subtitle">Análise detalhada de perfis e conexões.</p>
+            <img src="https://i.ibb.co/DgDZL5cY/insta1.png" alt="Nova foto de perfil" class="mx-auto my-6 rounded-full shadow-xl w-48 h-48 md:w-56 md:h-56 object-cover border-4 border-gray-700" onerror="this.onerror=null;this.src='https://placehold.co/224x224/0d1117/f87171?text=Imagem+N%C3%A3o+Encontrada';">
+        </header>
+
+        <!-- Menu de Navegação -->
+        <nav class="card">
+            <div class="card-header">
+                <h2 class="text-xl font-semibold text-center text-gray-300 w-full" data-translate="report_index">Índice do Relatório</h2>
+            </div>
+            <div class="card-content" style="max-height: 5000px; padding-bottom: 1.5rem;">
+                <div class="flex flex-wrap justify-center gap-2 md:gap-4">
+                    <a href="#alvo" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-300" data-translate="nav_leo">Leonardo D. Leite</a>
+                    <a href="#familia" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-300" data-translate="nav_family">Família e Conexões</a>
+                    <a href="#digital" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-300" data-translate="nav_digital">Presença Digital</a>
+                    <a href="#financeiro" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-300" data-translate="nav_financial">Financeiro</a>
+                    <a href="#timeline" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-300" data-translate="nav_timeline">Cronologia</a>
+                    <a href="#enderecos" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition duration-300" data-translate="nav_addresses">Mapa de Endereços</a>
+                    <a href="#midia" class="bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-300" data-translate="nav_media">Fotos e Vídeos</a>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Seções do Dossiê -->
+        <div id="dossier-content">
+            <!-- Seção 1: Leonardo Duarte Leite (Alvo Principal) -->
+            <section id="alvo" class="card">
+                <div class="card-header">
+                    <h2 class="section-title" data-translate="section_leo_title">1. Leonardo Duarte Leite (Alvo Principal)</h2>
+                    <span class="text-2xl text-gray-400 transform transition-transform duration-300">+</span>
+                </div>
+                <div class="card-content">
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-300 mb-4" data-translate="subsection_leo_profile">1.1 Perfil Pessoal e Documentação</h3>
+                            <dl>
+                                <dt data-translate="field_fullname">Nome Completo:</dt><dd><span id="leo-name">Leonardo Duarte Leite</span></dd>
+                                <dt>CPF:</dt><dd><span id="leo-cpf">025.183.520-07</span><button onclick="copyToClipboard('leo-cpf', this)" class="copy-btn" title="Copiar"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.353-.026.692-.026 1.038 0 .346.026.685.026 1.038 0 1.13.094 1.976 1.057 1.976 2.192V7.5M8.25 7.5h7.5m-7.5 0-1 0c-1.135 0-2.098.845-2.192 1.976a48.42 48.42 0 0 0 0 1.038c.094 1.13 1.057 1.976 2.192 1.976l1 0m-7.5 0h7.5" /></svg></button></dd>
+                                <dt data-translate="field_birthdate">Data de Nascimento:</dt><dd>10/06/2004</dd>
+                                <dt data-translate="field_age">Idade (em Ago/2025):</dt><dd>21 <span data-translate="years">anos</span></dd>
+                                <dt data-translate="field_parentage">Filiação:</dt><dd>Angelica Henriques Duarte (<span data-translate="mother">Mãe</span>)</dd>
+                                <dt data-translate="field_gender">Sexo:</dt><dd data-translate="male">Masculino</dd>
+                            </dl>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-300 mb-4" data-translate="subsection_leo_financial">1.2 Análise Financeira e de Consumo</h3>
+                            <dl>
+                                <dt data-translate="field_estimated_value">Valor Presumido (Consumo/Investimento):</dt><dd>R$ 318,00 (<span data-translate="monthly">mensal</span>)</dd>
+                            </dl>
+                            <h4 class="font-semibold text-gray-300 mt-4 mb-2" data-translate="field_spending_habits">Propensão de Consumo:</h4>
+                            <ul>
+                                <li><span class="font-semibold text-green-400" data-translate="high">Alta:</span> <span data-translate="habits_credit_card">Compras com Cartão de Crédito.</span></li>
+                                <li><span class="font-semibold text-yellow-400" data-translate="low">Baixa:</span> <span data-translate="habits_ecommerce">E-commerce, Celular, Seguros, etc.</span></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção 2: Família e Conexões -->
+            <section id="familia" class="card">
+                 <div class="card-header">
+                    <h2 class="section-title" data-translate="section_family_title">2. Família e Conexões</h2>
+                    <span class="text-2xl text-gray-400 transform transition-transform duration-300">+</span>
+                </div>
+                <div class="card-content">
+                    <div class="grid lg:grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-300 mb-4" data-translate="subsection_family_members">Membros da Família</h3>
+                            <div class="space-y-4">
+                                <div class="p-4 bg-gray-800 rounded-lg">
+                                    <h4 class="font-bold" data-translate="mother">Mãe:</h4>
+                                    <p>Angelica Henriques Duarte</p>
+                                </div>
+                                <div class="p-4 bg-gray-800 rounded-lg">
+                                    <h4 class="font-bold" data-translate="father">Pai:</h4>
+                                    <p>Carlos Miguel Silva Leite</p>
+                                </div>
+                                <div class="p-4 bg-gray-800 rounded-lg">
+                                    <h4 class="font-bold" data-translate="family_brother">Irmão:</h4>
+                                    <p>Vinicius Duarte Leite</p>
+                                </div>
+                                 <div class="p-4 bg-gray-800 rounded-lg">
+                                    <h4 class="font-bold" data-translate="family_aunt">Tia:</h4>
+                                    <p>Patricia H. Duarte</p>
+                                </div>
+                                 <div class="p-4 bg-gray-800 rounded-lg">
+                                    <h4 class="font-bold" data-translate="family_uncle">Tio:</h4>
+                                    <p>Felipe H. Duarte</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-300 mb-4" data-translate="subsection_connections_map">Mapa de Conexões</h3>
+                            <div id="connections-map" class="w-full h-96 bg-gray-900 rounded-lg"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Seção 3: Presença Digital -->
+            <section id="digital" class="card">
+                 <div class="card-header">
+                    <h2 class="section-title" data-translate="section_digital_title">3. Presença Digital</h2>
+                    <span class="text-2xl text-gray-400 transform transition-transform duration-300">+</span>
+                </div>
+                <div class="card-content">
+                    <dl>
+                        <dt>Instagram (<span data-translate="professional">Profissional</span>):</dt><dd><a href="https://www.instagram.com/ldlsecurity_/" target="_blank" class="text-gray-400 hover:text-gray-200 hover:underline">@ldlsecurity_</a></dd>
+                        <dt>Instagram (<span data-translate="personal">Pessoal</span>):</dt><dd><a href="https://www.instagram.com/leoduart7" target="_blank" class="text-gray-400 hover:text-gray-200 hover:underline">@leoduart7</a></dd>
+                        <dt>Email:</dt><dd><span id="leo-email">leonardoduarteleite022@gmail.com</span><button onclick="copyToClipboard('leo-email', this)" class="copy-btn" title="Copiar"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.353-.026.692-.026 1.038 0 .346.026.685.026 1.038 0 1.13.094 1.976 1.057 1.976 2.192V7.5M8.25 7.5h7.5m-7.5 0-1 0c-1.135 0-2.098.845-2.192 1.976a48.42 48.42 0 0 0 0 1.038c.094 1.13 1.057 1.976 2.192 1.976l1 0m-7.5 0h7.5" /></svg></button></dd>
+                        <dt data-translate="field_domain">Domínio:</dt><dd><span id="leo-domain">ldlsecurity.com.br</span> (<span data-translate="created">Criado</span>: 10/12/2024, <span data-translate="expires">Expira</span>: 10/12/2025)<button onclick="copyToClipboard('leo-domain', this)" class="copy-btn" title="Copiar"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 7.5V6.108c0-1.135.845-2.098 1.976-2.192.353-.026.692-.026 1.038 0 .346.026.685.026 1.038 0 1.13.094 1.976 1.057 1.976 2.192V7.5M8.25 7.5h7.5m-7.5 0-1 0c-1.135 0-2.098.845-2.192 1.976a48.42 48.42 0 0 0 0 1.038c.094 1.13 1.057 1.976 2.192 1.976l1 0m-7.5 0h7.5" /></svg></button></dd>
+                        <dt>Servidores DNS:</dt><dd>ns1.vercel-dns.com, ns2.vercel-dns.com</dd>
+                    </dl>
+                </div>
+            </section>
+
+            <!-- Seção 4: Resumo Financeiro Familiar -->
+            <section id="financeiro" class="card">
+                 <div class="card-header">
+                    <h2 class="section-title" data-translate="section_financial_title">4. Resumo Financeiro Familiar</h2>
+                    <span class="text-2xl text-gray-400 transform transition-transform duration-300">+</span>
+                </div>
+                <div class="card-content">
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-300 mb-4" data-translate="financial_parents_income">Renda Presumida dos Pais</h3>
+                            <dl>
+                                <dt data-translate="mother">Mãe (Angelica H. Duarte):</dt>
+                                <dd><span>Entre R$ 9.000,01 e R$ 11.000,01</span></dd>
+                                <dt data-translate="father">Pai (Carlos M. S. Leite):</dt>
+                                <dd><span>Entre R$ 5.400,01 e R$ 6.600,01</span></dd>
+                            </dl>
+                        </div>
+                         <div>
+                            <h3 class="text-xl font-semibold text-gray-300 mb-4" data-translate="financial_parents_debts">Dívidas Registradas (Mãe)</h3>
+                            <dl>
+                                <dt data-translate="financial_total_debt">Dívida Total em Débitos:</dt>
+                                <dd class="text-red-400 font-bold"><span>R$ 10.607,80</span></dd>
+                                <dt data-translate="financial_total_protests">Total em Protestos:</dt>
+                                <dd class="text-red-400 font-bold"><span>R$ 1.700,00</span></dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Seção 5: Cronologia -->
+            <section id="timeline" class="card">
+                 <div class="card-header">
+                    <h2 class="section-title" data-translate="section_timeline_title">5. Cronologia dos Eventos</h2>
+                    <span class="text-2xl text-gray-400 transform transition-transform duration-300">+</span>
+                </div>
+                <div class="card-content">
+                    <div class="space-y-8">
+                        <div class="timeline-item">
+                            <h3 class="font-semibold text-white">10/06/2004</h3>
+                            <p class="text-gray-400" data-translate="timeline_leo_birth">Nascimento de Leonardo Duarte Leite.</p>
+                        </div>
+                        <div class="timeline-item">
+                            <h3 class="font-semibold text-white">2017</h3>
+                            <p class="text-gray-400" data-translate="timeline_debts">Período de registro de dívidas e protestos em nome de Angelica H. Duarte.</p>
+                        </div>
+                        <div class="timeline-item">
+                            <h3 class="font-semibold text-white">10/12/2024</h3>
+                            <p class="text-gray-400" data-translate="timeline_domain_creation">Criação do domínio ldlsecurity.com.br por Leonardo Duarte Leite.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Seção 6: Mapa de Endereços -->
+            <section id="enderecos" class="card">
+                <div class="card-header">
+                    <h2 class="section-title" data-translate="section_addresses_title">6. Mapa de Endereços</h2>
+                    <span class="text-2xl text-gray-400 transform transition-transform duration-300">+</span>
+                </div>
+                <div class="card-content">
+                    <div id="map" class="w-full h-96 rounded-lg"></div>
+                </div>
+            </section>
+
+            <!-- Seção 7: Mídia -->
+            <section id="midia" class="card">
+                 <div class="card-header">
+                    <h2 class="section-title" data-translate="section_media_title">7. Mídia</h2>
+                    <span class="text-2xl text-gray-400 transform transition-transform duration-300">+</span>
+                </div>
+                <div class="card-content">
+                    <h3 class="text-2xl font-bold subsection-title" data-translate="subsection_photos">Galeria de Fotos</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="image-container"><img src="https://i.ibb.co/DgDZL5cY/insta1.png" alt="Foto 1" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/dwz2qBTt/insta2.png" alt="Foto 2" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/mFG9sPbh/insta3.png" alt="Foto 3" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/RkqLss8P/insta4.jpg" alt="Foto 4" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/TDpwJ63G/11057354-1719206614975063-7535379545420964890-o.jpg" alt="Foto 5" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/ccrx29kZ/15281904-1909789985916724-834127665-n.jpg" alt="Foto 6" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/Zp4S9KYG/48360837-213131852923403-8995437697254293504-n.jpg" alt="Foto 7" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/ycTzGpGG/48371464-531447444026814-8236267855063023616-n.jpg" alt="Foto 8" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/ZQwyYYj/48372384-611512862616929-5567333782433824768-n.jpg" alt="Foto 9" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/LXXJ9TW5/48392184-337374247086883-9211822504723611648-n.jpg" alt="Foto 10" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/QF4tv22P/48394852-351215319000385-5232122773370830848-n.jpg" alt="Foto 11" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/9kgxFQzy/48402993-800301050309499-7653903451167916032-n.jpg" alt="Foto 12" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/s9bCD7wM/48405421-2301888823376858-6191960561442357248-n.jpg" alt="Foto 13" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/Q7vh2SX5/48405616-722074308161751-1962269612926042112-n.jpg" alt="Foto 14" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/q3ZdSL3f/48415624-723375954684966-4225401637692243968-n.jpg" alt="Foto 15" onclick="openModal(this.src)"></div>
+                        <div class="image-container"><img src="https://i.ibb.co/G3TKqbjX/48424973-721647824873817-3284160250558545920-n.jpg" alt="Foto 16" onclick="openModal(this.src)"></div>
+                    </div>
+
+                    <h3 class="text-2xl font-bold subsection-title" data-translate="subsection_videos">Galeria de Vídeos</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/SWDirLZqSJ4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/iQiB6wG9Aao" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/fZZRCpwE-8o" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/hwSWP9jIPOc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/yJuIFcS0Yrc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/inL_Cpq0_ts" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/LaUVCI3tucs" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/quL_ZayvQGg" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/XZEoM-Qc_Ek" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/1ULxdEmpaac" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/EIdmmW51SbA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/IRGeXn33JFs" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/ZGnLjEIPzEU" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/QJwoltZNOrw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                        <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/fEkJ4Mjcn7o" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <footer class="text-center mt-12 text-gray-500 text-sm">
+            <p data-translate="footer_text">Renkill, saiba que tudo o que você fez para incriminar Finistro e colocá-lo na prisão por um crime que ele jamais cometeu não ficará sem resposta. Cada mentira que você espalhou, cada armadilha que armou, cada sombra de maldade que lançou sobre ele voltará para você com força esmagadora. Finistro sofreu uma injustiça que você fabricou, mas o peso das suas ações vai te encontrar. Não existe escapatória para quem destrói vidas com a própria mentira. A hora da sua queda está próxima, e quando ela vier, será inescapável.</p>
+        </footer>
+
+    </div>
+
+    <!-- Modal para visualização de imagem -->
+    <div id="imageModal" class="modal" style="display: none;">
+        <span class="modal-close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modalImage">
+    </div>
+
+    <script>
+        const translations = {
+            'pt-br': {
+                dossier_title: 'Dossiê Confidencial',
+                dossier_subtitle: 'Análise detalhada de perfis e conexões.',
+                report_index: 'Índice do Relatório',
+                nav_leo: 'Leonardo D. Leite',
+                nav_family: 'Família e Conexões',
+                nav_digital: 'Presença Digital',
+                nav_financial: 'Financeiro',
+                nav_timeline: 'Cronologia',
+                nav_addresses: 'Mapa de Endereços',
+                nav_media: 'Fotos e Vídeos',
+                section_leo_title: '1. Leonardo Duarte Leite (Alvo Principal)',
+                subsection_leo_profile: '1.1 Perfil Pessoal e Documentação',
+                field_fullname: 'Nome Completo:',
+                field_birthdate: 'Data de Nascimento:',
+                field_age: 'Idade (em Ago/2025):',
+                years: 'anos',
+                field_parentage: 'Filiação:',
+                mother: 'Mãe',
+                father: 'Pai',
+                field_gender: 'Sexo:',
+                male: 'Masculino',
+                subsection_leo_financial: '1.2 Análise Financeira e de Consumo',
+                field_estimated_value: 'Valor Presumido (Consumo/Investimento):',
+                monthly: 'mensal',
+                field_spending_habits: 'Propensão de Consumo:',
+                high: 'Alta:',
+                low: 'Baixa:',
+                habits_credit_card: 'Compras com Cartão de Crédito.',
+                habits_ecommerce: 'E-commerce, Celular, Seguros, etc.',
+                section_family_title: '2. Família e Conexões',
+                subsection_family_members: 'Membros da Família',
+                subsection_connections_map: 'Mapa de Conexões',
+                family_brother: 'Irmão',
+                family_aunt: 'Tia',
+                family_uncle: 'Tio',
+                section_digital_title: '3. Presença Digital',
+                professional: 'Profissional',
+                personal: 'Pessoal',
+                field_domain: 'Domínio:',
+                created: 'Criado',
+                expires: 'Expira',
+                section_financial_title: '4. Resumo Financeiro Familiar',
+                financial_parents_income: 'Renda Presumida dos Pais',
+                financial_parents_debts: 'Dívidas Registradas (Mãe)',
+                financial_total_debt: 'Dívida Total em Débitos:',
+                financial_total_protests: 'Total em Protestos:',
+                section_timeline_title: '5. Cronologia dos Eventos',
+                timeline_leo_birth: 'Nascimento de Leonardo Duarte Leite.',
+                timeline_debts: 'Período de registro de dívidas e protestos em nome de Angelica H. Duarte.',
+                timeline_domain_creation: 'Criação do domínio ldlsecurity.com.br por Leonardo Duarte Leite.',
+                section_addresses_title: '6. Mapa de Endereços',
+                section_media_title: '7. Mídia',
+                subsection_photos: 'Galeria de Fotos',
+                subsection_videos: 'Galeria de Vídeos',
+                search_placeholder: 'Pesquisar no dossiê...',
+                copied: 'Copiado!',
+                footer_text: "Renkill, saiba que tudo o que você fez para incriminar Finistro e colocá-lo na prisão por um crime que ele jamais cometeu não ficará sem resposta. Cada mentira que você espalhou, cada armadilha que armou, cada sombra de maldade que lançou sobre ele voltará para você com força esmagadora. Finistro sofreu uma injustiça que você fabricou, mas o peso das suas ações vai te encontrar. Não existe escapatória para quem destrói vidas com a própria mentira. A hora da sua queda está próxima, e quando ela vier, será inescapável."
+            },
+            'en': {
+                dossier_title: 'Confidential Dossier',
+                dossier_subtitle: 'Detailed analysis of profiles and connections.',
+                report_index: 'Report Index',
+                nav_leo: 'Leonardo D. Leite',
+                nav_family: 'Family & Connections',
+                nav_digital: 'Digital Presence',
+                nav_financial: 'Financial',
+                nav_timeline: 'Timeline',
+                nav_addresses: 'Address Map',
+                nav_media: 'Photos & Videos',
+                section_leo_title: '1. Leonardo Duarte Leite (Main Target)',
+                subsection_leo_profile: '1.1 Personal Profile & Documentation',
+                field_fullname: 'Full Name:',
+                field_birthdate: 'Date of Birth:',
+                field_age: 'Age (as of Aug/2025):',
+                years: 'years old',
+                field_parentage: 'Parentage:',
+                mother: 'Mother',
+                father: 'Father',
+                field_gender: 'Gender:',
+                male: 'Male',
+                subsection_leo_financial: '1.2 Financial & Consumption Analysis',
+                field_estimated_value: 'Estimated Value (Consumption/Investment):',
+                monthly: 'monthly',
+                field_spending_habits: 'Spending Habits:',
+                high: 'High:',
+                low: 'Low:',
+                habits_credit_card: 'Credit Card Purchases.',
+                habits_ecommerce: 'E-commerce, Mobile, Insurance, etc.',
+                subsection_leo_contact: '1.3 Additional Information & Contact',
+                professional: 'Professional',
+                personal: 'Personal',
+                field_domain: 'Domain:',
+                created: 'Created',
+                expires: 'Expires',
+                section_family_title: '2. Family & Connections',
+                subsection_family_members: 'Family Members',
+                subsection_connections_map: 'Connections Map',
+                family_brother: 'Brother',
+                family_aunt: 'Aunt',
+                family_uncle: 'Uncle',
+                section_digital_title: '3. Digital Presence',
+                section_financial_title: '4. Family Financial Summary',
+                financial_parents_income: "Parents' Estimated Income",
+                financial_parents_debts: "Registered Debts (Mother)",
+                financial_total_debt: 'Total Debt:',
+                financial_total_protests: 'Total Protests:',
+                section_timeline_title: '5. Timeline of Events',
+                timeline_leo_birth: 'Birth of Leonardo Duarte Leite.',
+                timeline_debts: 'Period of debt and protest registrations in the name of Angelica H. Duarte.',
+                timeline_domain_creation: 'Creation of the domain ldlsecurity.com.br by Leonardo Duarte Leite.',
+                section_addresses_title: '6. Address Map',
+                section_media_title: '7. Media',
+                subsection_photos: 'Photo Gallery',
+                subsection_videos: 'Video Gallery',
+                search_placeholder: 'Search in dossier...',
+                copied: 'Copied!',
+                footer_text: "Renkill, know that everything you did to frame Finistro and put him in prison for a crime he never committed will not go unanswered. Every lie you spread, every trap you set, every shadow of evil you cast upon him will come back to you with overwhelming force. Finistro suffered an injustice you fabricated, but the weight of your actions will find you. There is no escape for those who destroy lives with their own lies. The time of your fall is near, and when it comes, it will be inescapable."
+            },
+            'fr': {
+                dossier_title: 'Dossier Confidentiel',
+                dossier_subtitle: 'Analyse détaillée des profils et des connexions.',
+                report_index: 'Index du Rapport',
+                nav_leo: 'Leonardo D. Leite',
+                nav_family: 'Famille et Connexions',
+                nav_digital: 'Présence Numérique',
+                nav_financial: 'Finances',
+                nav_timeline: 'Chronologie',
+                nav_addresses: 'Carte des Adresses',
+                nav_media: 'Photos et Vidéos',
+                section_leo_title: '1. Leonardo Duarte Leite (Cible Principale)',
+                subsection_leo_profile: '1.1 Profil Personnel et Documentation',
+                field_fullname: 'Nom Complet:',
+                field_birthdate: 'Date de Naissance:',
+                field_age: 'Âge (en août/2025):',
+                years: 'ans',
+                field_parentage: 'Filiation:',
+                mother: 'Mère',
+                father: 'Père',
+                field_gender: 'Sexe:',
+                male: 'Masculin',
+                subsection_leo_financial: '1.2 Analyse Financière et de Consommation',
+                field_estimated_value: 'Valeur Estimée (Consommation/Investissement):',
+                monthly: 'mensuel',
+                field_spending_habits: 'Habitudes de Dépenses:',
+                high: 'Élevée:',
+                low: 'Faible:',
+                habits_credit_card: 'Achats par Carte de Crédit.',
+                habits_ecommerce: 'E-commerce, Mobile, Assurances, etc.',
+                subsection_leo_contact: '1.3 Informations Supplémentaires et Contact',
+                professional: 'Professionnel',
+                personal: 'Personnel',
+                field_domain: 'Domaine:',
+                created: 'Créé',
+                expires: 'Expire',
+                section_family_title: '2. Famille et Connexions',
+                subsection_family_members: 'Membres de la Famille',
+                subsection_connections_map: 'Carte des Connexions',
+                family_brother: 'Frère',
+                family_aunt: 'Tante',
+                family_uncle: 'Oncle',
+                section_digital_title: '3. Présence Numérique',
+                section_financial_title: '4. Résumé Financier Familial',
+                financial_parents_income: "Revenu Estimé des Parents",
+                financial_parents_debts: "Dettes Enregistrées (Mère)",
+                financial_total_debt: 'Dette Totale:',
+                financial_total_protests: 'Total des Protêts:',
+                section_timeline_title: '5. Chronologie des Événements',
+                timeline_leo_birth: 'Naissance de Leonardo Duarte Leite.',
+                timeline_debts: 'Période d\'enregistrement de dettes et de protêts au nom d\'Angelica H. Duarte.',
+                timeline_domain_creation: 'Création du domaine ldlsecurity.com.br par Leonardo Duarte Leite.',
+                section_addresses_title: '6. Carte des Adresses',
+                section_media_title: '7. Médias',
+                subsection_photos: 'Galerie de Photos',
+                subsection_videos: 'Galerie de Vidéos',
+                search_placeholder: 'Rechercher dans le dossier...',
+                copied: 'Copié!',
+                footer_text: "Renkill, sache que tout ce que tu as fait pour piéger Finistro et le mettre en prison pour un crime qu'il n'a jamais commis ne restera pas sans réponse. Chaque mensonge que tu as répandu, chaque piège que tu as tendu, chaque ombre de méchanceté que tu as jetée sur lui te reviendra avec une force écrasante. Finistro a subi une injustice que tu as fabriquée, mais le poids de tes actions te trouvera. Il n'y a aucune échappatoire pour ceux qui détruisent des vies avec leurs propres mensonges. L'heure de ta chute est proche, et quand elle viendra, elle sera inéluctable."
+            }
+        };
+
+        function changeLanguage(lang) {
+            document.querySelectorAll('[data-translate]').forEach(element => {
+                const key = element.getAttribute('data-translate');
+                if (translations[lang] && translations[lang][key]) {
+                    element.innerHTML = translations[lang][key];
+                }
+            });
+             document.getElementById('search-bar').placeholder = translations[lang].search_placeholder || 'Search in dossier...';
+            document.documentElement.lang = lang;
+        }
+
+        function copyToClipboard(elementId, button) {
+            const textToCopy = document.getElementById(elementId).innerText;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const originalContent = button.innerHTML;
+                const lang = document.documentElement.lang || 'pt-br';
+                const copiedText = translations[lang].copied || 'Copiado!';
+                button.innerHTML = `<span class="text-green-400 text-xs">${copiedText}</span>`;
+                setTimeout(() => {
+                    button.innerHTML = originalContent;
+                }, 1500);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+            });
+        }
+        
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+
+        function openModal(src) {
+            modal.style.display = 'flex';
+            modalImg.src = src;
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+        
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+
+        function searchDossier() {
+            const input = document.getElementById('search-bar');
+            const filter = input.value.toUpperCase();
+            const content = document.getElementById('dossier-content');
+            const sections = content.getElementsByTagName('section');
+
+            for (let i = 0; i < sections.length; i++) {
+                const txtValue = sections[i].textContent || sections[i].innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    sections[i].style.display = "";
+                } else {
+                    sections[i].style.display = "none";
+                }
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // Lógica do Accordion
+            const cardHeaders = document.querySelectorAll('.card-header');
+            let map; // Variável do mapa
+            cardHeaders.forEach(header => {
+                if (header.parentElement.tagName.toLowerCase() === 'nav') return;
+
+                header.addEventListener('click', () => {
+                    const card = header.parentElement;
+                    const icon = header.querySelector('span');
+                    const isOpen = card.classList.contains('open');
+
+                    document.querySelectorAll('#dossier-content .card.open').forEach(openCard => {
+                        if(openCard !== card) {
+                            openCard.classList.remove('open');
+                             openCard.querySelector('.card-header span').style.transform = 'rotate(0deg)';
+                        }
+                    });
+
+                    card.classList.toggle('open', !isOpen);
+                    icon.style.transform = !isOpen ? 'rotate(45deg)' : 'rotate(0deg)';
+
+                    if (card.id === 'enderecos' && !isOpen) {
+                        setTimeout(() => {
+                            if (!map) {
+                                const addresses = [
+                                    { lat: -29.98, lng: -51.07, name: 'Angelica & Carlos', address: 'R Biguas 64, Alvorada - RS' },
+                                    { lat: -30.06, lng: -51.17, name: 'Noemi H. Duarte', address: 'Av Luiz Moschetti 715, Porto Alegre - RS' },
+                                    { lat: -30.12, lng: -51.21, name: 'Patricia H. Duarte', address: 'R Deusde Cardoso, 121, Porto Alegre - RS' },
+                                    { lat: -30.02, lng: -51.21, name: 'Felipe H. Duarte', address: 'Av Farrapos, 2479, Porto Alegre - RS' },
+                                ];
+                                map = L.map('map').setView([-30.05, -51.15], 11);
+                                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                    maxZoom: 19,
+                                    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                }).addTo(map);
+
+                                addresses.forEach(addr => {
+                                    L.marker([addr.lat, addr.lng]).addTo(map)
+                                        .bindPopup(`<b>${addr.name}</b><br>${addr.address}`);
+                                });
+                            }
+                            map.invalidateSize();
+                        }, 500);
+                    }
+                });
+            });
+
+             // Lógica do Mapa de Conexões
+            const graphData = {
+                nodes: [ { id: "Leonardo", group: 1, radius: 20 }, { id: "Angelica", group: 2, radius: 15 }, { id: "Carlos", group: 2, radius: 15 }, { id: "Vinicius", group: 3, radius: 12 }, { id: "Patricia", group: 4, radius: 12 }, { id: "Felipe", group: 4, radius: 12 }, ],
+                links: [ { source: "Leonardo", target: "Angelica", value: 1 }, { source: "Leonardo", target: "Carlos", value: 1 }, { source: "Leonardo", target: "Vinicius", value: 1 }, { source: "Angelica", target: "Vinicius", value: 1 }, { source: "Carlos", target: "Vinicius", value: 1 }, { source: "Angelica", target: "Patricia", value: 1 }, { source: "Angelica", target: "Felipe", value: 1 }, { source: "Patricia", target: "Felipe", value: 1 }, ],
+            };
+            const svg = d3.select("#connections-map").append("svg").attr("width", "100%").attr("height", "100%").attr("viewBox", [-300, -200, 600, 400]);
+            const simulation = d3.forceSimulation(graphData.nodes).force("link", d3.forceLink(graphData.links).id(d => d.id).distance(100)).force("charge", d3.forceManyBody().strength(-200)).force("center", d3.forceCenter());
+            const link = svg.append("g").attr("stroke", "#4a5568").attr("stroke-opacity", 0.6).selectAll("line").data(graphData.links).join("line").attr("stroke-width", d => Math.sqrt(d.value));
+            const node = svg.append("g").selectAll("g").data(graphData.nodes).join("g").call(drag(simulation));
+            node.append("circle").attr("r", d => d.radius).attr("fill", d => d.group === 1 ? "#ffffff" : (d.group === 2 ? "#e0e0e0" : "#8b949e")).attr("stroke", "#161b22").attr("stroke-width", 2);
+            node.append("text").text(d => d.id).attr("x", d => d.radius + 5).attr("y", 5).attr("fill", "#c9d1d9").style("font-size", "12px");
+            simulation.on("tick", () => { link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y); node.attr("transform", d => `translate(${d.x},${d.y})`); });
+            function drag(simulation) { function dragstarted(event) { if (!event.active) simulation.alphaTarget(0.3).restart(); event.subject.fx = event.subject.x; event.subject.fy = event.subject.y; } function dragged(event) { event.subject.fx = event.x; event.subject.fy = event.y; } function dragended(event) { if (!event.active) simulation.alphaTarget(0); event.subject.fx = null; event.subject.fy = null; } return d3.drag().on("start", dragstarted).on("drag", dragged).on("end", dragended); }
+            
+            changeLanguage('pt-br');
+        });
+    </script>
+
+</body>
+</html>
+   
+ 
