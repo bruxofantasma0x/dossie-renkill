@@ -73,7 +73,6 @@
         .modal-content {
             margin: auto;
             display: block;
-            /* max-width e max-height removidos para exibir a imagem no tamanho real */
         }
         .modal-close { position: absolute; top: 15px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; transition: 0.3s; cursor: pointer; }
         .timeline-item { position: relative; padding-left: 30px; border-left: 2px solid #30363d; }
@@ -84,6 +83,33 @@
         }
         .copy-btn svg { width: 16px; height: 16px; color: #8b949e; }
         .copy-btn:hover svg { color: #ffffff; }
+        
+        /* NOVO: Estilo para galeria com scroll horizontal em mobile */
+        .media-gallery {
+            display: flex;
+            overflow-x: auto;
+            gap: 1rem;
+            padding-bottom: 1rem; /* Espaço para a barra de scroll */
+            scroll-snap-type: x mandatory; /* Efeito de "parar" no item */
+        }
+        .media-gallery > div {
+            flex: 0 0 80%; /* Cada item ocupa 80% da largura da tela */
+            scroll-snap-align: center;
+        }
+        /* A partir de telas médias (tablet), volta a ser uma grelha normal */
+        @media (min-width: 768px) {
+            .media-gallery {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                overflow-x: visible;
+                padding-bottom: 0;
+            }
+        }
+        @media (min-width: 1024px) {
+            .media-gallery {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -299,7 +325,7 @@
                 </div>
                 <div class="card-content">
                     <h3 class="text-2xl font-bold subsection-title" data-translate="subsection_photos">Galeria de Fotos</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="media-gallery">
                         <div class="image-container"><img src="https://i.ibb.co/DgDZL5cY/insta1.png" alt="Foto 1" onclick="openModal(this.src)"></div>
                         <div class="image-container"><img src="https://i.ibb.co/dwz2qBTt/insta2.png" alt="Foto 2" onclick="openModal(this.src)"></div>
                         <div class="image-container"><img src="https://i.ibb.co/mFG9sPbh/insta3.png" alt="Foto 3" onclick="openModal(this.src)"></div>
@@ -319,7 +345,7 @@
                     </div>
 
                     <h3 class="text-2xl font-bold subsection-title" data-translate="subsection_videos">Galeria de Vídeos</h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="media-gallery">
                         <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/SWDirLZqSJ4" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
                         <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/iQiB6wG9Aao" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
                         <div class="video-container shadow-lg"><iframe src="https://www.youtube.com/embed/fZZRCpwE-8o" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
@@ -663,5 +689,3 @@
 
 </body>
 </html>
-   
- 
